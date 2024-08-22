@@ -1,0 +1,142 @@
+$bg-color: #1a1a1a;
+$text-color: #e0e0e0;
+$accent-color: #4a90e2;
+$tool-bg-color: #2c2c2c;
+$debug-border-color: #ffffff;
+
+body {
+    background-color: $bg-color;
+    color: $text-color;
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+h1,
+h2 {
+    color: $accent-color;
+}
+
+a {
+    color: $accent-color;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.container {
+    background-color: lighten($bg-color, 5%);
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.tools-section {
+    margin-top: 30px;
+    border: 2px solid $debug-border-color; // Debug border
+    padding: 10px;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+    border: 2px dashed $debug-border-color; // Debug border
+    padding: 10px;
+}
+
+.tool-item {
+    background-color: $tool-bg-color;
+    border-radius: 5px;
+    padding: 15px;
+    transition:
+        transform 0.3s,
+        box-shadow 0.3s;
+    border: 1px solid $debug-border-color; // Debug border
+    display: inline-block;
+    position: relative;
+    img {
+        width: 100%;
+        height: 100%;
+    }
+    &:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(255, 255, 255, 0.1);
+    }
+
+    h3 {
+        color: $accent-color;
+        margin: 0 0 10px 0;
+        font-size: 1.2em;
+    }
+
+    p {
+        margin: 0;
+        font-size: 0.9em;
+        line-height: 1.4;
+    }
+}
+
+.tool-description {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, +100%);
+    background-color: rgba(0, 0, 0, 0.75);
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+    white-space: wrap;
+    z-index: 1;
+}
+
+.tool-item:hover .tool-description {
+    display: block;
+}
+
+.projects-grid {
+    display: flex;
+    /* grid-template-columns: repeat(3, 1fr); */
+    align-items: center;
+    justify-content: space-between;
+    border: 1px dashed $debug-border-color; // Debug border
+}
+.project-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    flex-grow: 1;
+    border: 1px dashed $debug-border-color; // Debug border
+}
+
+.nav-button {
+    flex-basis: 10%;
+    text-align: center;
+}
+
+.project {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid $debug-border-color; // Debug border
+}
+.project img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.project:hover .tool-description {
+    display: block;
+}
+// Media query for smaller screens
+@media (max-width: 600px) {
+    .tools-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
