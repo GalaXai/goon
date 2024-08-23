@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	_ "image/jpeg"
@@ -69,6 +70,34 @@ func downSample(matrix [][][]uint8, kernelSize int) [][][]uint8 {
 	return downSampledMatrix
 }
 
+func downSampleInplace(matrix [][][]uint8, kernelSize int) {
+	X, Y, dim := len(matrix), len(matrix[0]), len(matrix[0][0])
+
+	newY := Y / kernelSize
+	newX := X / kernelSize
+	kernelArea := kernelSize * kernelSize
+	for i := 0; i < newY; i++ {
+		for j := 0; j < newX; j++ {
+			sum := make([]uint64, dim)
+			// Gets average from the kernel window
+			for ky := 0; ky < kernelSize; ky++ {
+				y := i*kernelSize + ky
+				for kx := 0; kx < kernelSize; kx++ {
+					x := j*kernelSize + kx
+					for d := 0; d < dim; d++ {
+						sum[d] += uint64(matrix[y][x][d])
+					}
+				}
+			}
+			avg := make([]uint8, dim)
+			for d := 0; d < dim; d++ {
+				avg[d] = uint8(sum[d] / uint64(kernelArea))
+			}
+			matrix[i][j] = avg
+		}
+	}
+}
+
 func exportImage(matrix [][][]uint8, fileName string) {
 	Y, X := len(matrix), len(matrix[1])
 	imgCanvas := image.NewNRGBA(image.Rect(0, 0, X, Y))
@@ -96,22 +125,39 @@ func exportImage(matrix [][][]uint8, fileName string) {
 	}
 }
 
-// func main() {
+func desaturateInplace(matrix [][][]uint8) {
 
-// 	//open the image
-// 	file, err := os.Open("static/test.png")
-// 	if err != nil {
-// 		fmt.Println("Error opening image file:", err)
-// 		return
-// 	}
-// 	defer file.Close()
+	Y, X := len(matrix), len(matrix[1])
+	for y := 0; y < Y; y++ {
+		for x := 0; x < X; x++ {
+			r := matrix[y][x][0]
+			g := matrix[y][x][1]
+			b := matrix[y][x][2]
+			gray := float32(0.299)*float32(r) + float32(0.587)*float32(g) + float32(0.114)*float32(b)
+			for d := 0; d < 3; d++ {
+				matrix[y][x][d] = uint8(gray)
+			}
+		}
+	}
+}
 
-// 	img, _, err := image.Decode(file)
-// 	if err != nil {
-// 		fmt.Println("Error decoding image :", err)
-// 		return
-// 	}
-// 	matrix := getImageMatrix(img)
-// 	dsmatrix := downSample(matrix, 8)
-// 	exportImage(dsmatrix, "static/downsapled.png")
-// }
+func main() {
+
+	//open the image
+	file, err := os.Open("static/test.png")
+	if err != nil {
+		fmt.Println("Error opening image file:", err)
+		return
+	}
+	defer file.Close()
+
+	img, _, err := image.Decode(file)
+	if err != nil {
+		fmt.Println("Error decoding image :", err)
+		return
+	}
+	matrix := getImageMatrix(img)
+	downSampleInplace(matrix, 8)
+	desaturateInplace(matrix)
+	exportImage(matrix, "static/downsapled.png")
+}
