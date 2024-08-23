@@ -7,6 +7,7 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	_ "image/png"
+	"math"
 	"os"
 )
 
@@ -70,34 +71,6 @@ func downSample(matrix [][][]uint8, kernelSize int) [][][]uint8 {
 	return downSampledMatrix
 }
 
-func downSampleInplace(matrix [][][]uint8, kernelSize int) {
-	X, Y, dim := len(matrix), len(matrix[0]), len(matrix[0][0])
-
-	newY := Y / kernelSize
-	newX := X / kernelSize
-	kernelArea := kernelSize * kernelSize
-	for i := 0; i < newY; i++ {
-		for j := 0; j < newX; j++ {
-			sum := make([]uint64, dim)
-			// Gets average from the kernel window
-			for ky := 0; ky < kernelSize; ky++ {
-				y := i*kernelSize + ky
-				for kx := 0; kx < kernelSize; kx++ {
-					x := j*kernelSize + kx
-					for d := 0; d < dim; d++ {
-						sum[d] += uint64(matrix[y][x][d])
-					}
-				}
-			}
-			avg := make([]uint8, dim)
-			for d := 0; d < dim; d++ {
-				avg[d] = uint8(sum[d] / uint64(kernelArea))
-			}
-			matrix[i][j] = avg
-		}
-	}
-}
-
 func exportImage(matrix [][][]uint8, fileName string) {
 	Y, X := len(matrix), len(matrix[1])
 	imgCanvas := image.NewNRGBA(image.Rect(0, 0, X, Y))
@@ -141,8 +114,34 @@ func desaturateInplace(matrix [][][]uint8) {
 	}
 }
 
-func main() {
+func asciiIamge(matrix [][][]uint8) [][][]rune {
+	Y, X := len(matrix), len(matrix[1])
+	asciiTable := []rune{' ', ',', ';', 'c', 'o', 'P', 'O', '?', '@', '▓'}
 
+	asciiMatrix := make([][][]rune, Y)
+	for i := range asciiMatrix {
+		asciiMatrix[i] = make([][]rune, X)
+		for j := range asciiMatrix {
+			luminance := uint8(int(math.Floor(float64(matrix[j][i][0]) / 255.0 * 9.0)))
+			asciiMatrix[i][j] = make([]rune, 1)
+			asciiMatrix[i][j][0] = asciiTable[luminance]
+		}
+	}
+	return asciiMatrix
+}
+
+func printAsciiArt(asciiMatrix [][][]rune) {
+	for _, row := range asciiMatrix {
+		for _, cell := range row {
+			fmt.Print(string(cell))
+		}
+		fmt.Println() // New line after each row
+	}
+}
+
+// Uncomment for testing
+
+func main() {
 	//open the image
 	file, err := os.Open("static/test.png")
 	if err != nil {
@@ -157,7 +156,9 @@ func main() {
 		return
 	}
 	matrix := getImageMatrix(img)
-	downSampleInplace(matrix, 8)
-	desaturateInplace(matrix)
-	exportImage(matrix, "static/downsapled.png")
+	dMatrix := downSample(matrix, 8)
+	desaturateInplace(dMatrix)
+	ascii := asciiIamge(dMatrix)
+	printAsciiArt(ascii)
+	exportImage(dMatrix, "static/downsapled.png")
 }
