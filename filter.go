@@ -170,9 +170,7 @@ func printAsciiArt(asciiMatrix [][][]rune) {
 
 func main() {
 	//open the image
-	// file, err := os.Open("static/placeholder-tool.png")
-	// file, err := os.Open("static/test.png")
-	file, err := os.Open("static/example.png")
+	file, err := os.Open("static/test.png")
 	if err != nil {
 		fmt.Println("Error opening image file:", err)
 		return
