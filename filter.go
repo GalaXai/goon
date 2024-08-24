@@ -39,8 +39,29 @@ func getImageMatrix(img image.Image) [][][]uint8 {
 	return matrix
 }
 
-func downSample(matrix [][][]uint8, kernelSize int) [][][]uint8 {
-	X, Y, dim := len(matrix), len(matrix[0]), len(matrix[0][0])
+func downSample(matrix [][][]uint8, kernelSize int) ([][][]uint8, error) {
+	// Recover from panic
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic in downSample:", r)
+		}
+	}()
+
+	// Check if matrix is empty
+	if len(matrix) == 0 || len(matrix[0]) == 0 || len(matrix[0][0]) == 0 {
+		return nil, fmt.Errorf("input matrix is empty")
+	}
+
+	Y, X, dim := len(matrix), len(matrix[0]), len(matrix[0][0])
+
+	// Check if kernelSize is valid
+	if kernelSize <= 0 || kernelSize > Y || kernelSize > X {
+		return nil, fmt.Errorf("invalid kernel size: %d", kernelSize)
+	}
+
+	// Adjust Y and X to be divisible by kernelSize
+	Y = (Y / kernelSize) * kernelSize
+	X = (X / kernelSize) * kernelSize
 
 	newY := Y / kernelSize
 	newX := X / kernelSize
@@ -56,6 +77,13 @@ func downSample(matrix [][][]uint8, kernelSize int) [][][]uint8 {
 				y := i*kernelSize + ky
 				for kx := 0; kx < kernelSize; kx++ {
 					x := j*kernelSize + kx
+					// Check if indices are within bounds
+					if y >= Y || x >= X {
+						return nil, fmt.Errorf("index out of range: [%d][%d]", y, x)
+					}
+					if len(matrix[y][x]) == 0 {
+						continue
+					}
 					for d := 0; d < dim; d++ {
 						sum[d] += uint64(matrix[y][x][d])
 					}
@@ -68,19 +96,19 @@ func downSample(matrix [][][]uint8, kernelSize int) [][][]uint8 {
 			downSampledMatrix[i][j] = avg
 		}
 	}
-	return downSampledMatrix
+	return downSampledMatrix, nil
 }
 
 func exportImage(matrix [][][]uint8, fileName string) {
 	Y, X := len(matrix), len(matrix[1])
 	imgCanvas := image.NewNRGBA(image.Rect(0, 0, X, Y))
 
-	for y := 0; y < Y; y++ {
-		for x := 0; x < X; x++ {
-			r := matrix[y][x][0]
-			g := matrix[y][x][1]
-			b := matrix[y][x][2]
-			imgCanvas.Set(y, x, color.RGBA{r, g, b, 255}) // Assuming full opacity
+	for i := 0; i < Y; i++ {
+		for j := 0; j < X; j++ {
+			r := matrix[i][j][0]
+			g := matrix[i][j][1]
+			b := matrix[i][j][2]
+			imgCanvas.Set(i, j, color.RGBA{r, g, b, 255}) // Assuming full opacity
 		}
 	}
 
@@ -101,23 +129,22 @@ func exportImage(matrix [][][]uint8, fileName string) {
 func desaturateInplace(matrix [][][]uint8) {
 
 	Y, X := len(matrix), len(matrix[1])
-	for y := 0; y < Y; y++ {
-		for x := 0; x < X; x++ {
-			r := matrix[y][x][0]
-			g := matrix[y][x][1]
-			b := matrix[y][x][2]
+	for i := 0; i < Y; i++ {
+		for j := 0; j < X; j++ {
+			r := matrix[i][j][0]
+			g := matrix[i][j][1]
+			b := matrix[i][j][2]
 			gray := float32(0.299)*float32(r) + float32(0.587)*float32(g) + float32(0.114)*float32(b)
 			for d := 0; d < 3; d++ {
-				matrix[y][x][d] = uint8(gray)
+				matrix[i][j][d] = uint8(gray)
 			}
 		}
 	}
 }
 
 func asciiIamge(matrix [][][]uint8) [][][]rune {
-	Y, X := len(matrix), len(matrix[1])
+	Y, X := len(matrix), len(matrix[0])
 	asciiTable := []rune{' ', ',', ';', 'c', 'o', 'P', 'O', '?', '@', '▓'}
-
 	asciiMatrix := make([][][]rune, Y)
 	for i := range asciiMatrix {
 		asciiMatrix[i] = make([][]rune, X)
@@ -143,7 +170,9 @@ func printAsciiArt(asciiMatrix [][][]rune) {
 
 func main() {
 	//open the image
-	file, err := os.Open("static/test.png")
+	// file, err := os.Open("static/placeholder-tool.png")
+	// file, err := os.Open("static/test.png")
+	file, err := os.Open("static/example.png")
 	if err != nil {
 		fmt.Println("Error opening image file:", err)
 		return
@@ -155,10 +184,24 @@ func main() {
 		fmt.Println("Error decoding image :", err)
 		return
 	}
+
 	matrix := getImageMatrix(img)
-	dMatrix := downSample(matrix, 8)
-	desaturateInplace(dMatrix)
-	ascii := asciiIamge(dMatrix)
-	printAsciiArt(ascii)
+	fmt.Println("Image shape Y:", len(matrix), "X:", len(matrix[0]))
+
+	dMatrix, err := downSample(matrix, 8)
+	if err != nil {
+		fmt.Println("Error in downSample:", err)
+		// Handle the error appropriately
+		return
+	}
 	exportImage(dMatrix, "static/downsapled.png")
+	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
+
+	desaturateInplace(dMatrix)
+	exportImage(dMatrix, "static/desaturated.png")
+	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
+
+	ascii := asciiIamge(dMatrix)
+	fmt.Println("Image shape Y:", len(ascii), "X:", len(ascii[0]))
+	printAsciiArt(ascii)
 }
