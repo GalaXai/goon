@@ -5,11 +5,13 @@
   <th>Original</th>
   <th>Downsampled</th>
   <th>Desaturated</th>
+  <th>diffOfGaussians</th>
 </tr>
 <tr>
   <td><img src="static/test.png" style="width: 200px; height: 200px" alt="Original"></td>
   <td><img src="static/downsapled.png" style="width: 200px; height: 200px" alt="Downsampled"></td>
   <td><img src="static/desaturated.png" style="width: 200px; height: 200px" alt="Desaturated"></td>
+  <td><img src="static/gaussDiff.png" style="width: 200px; height: 200px" alt="Desaturated"></td>
 </tr>
 </table>
 
