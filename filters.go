@@ -31,7 +31,7 @@ func getImageMatrix(img image.Image) [][][]uint8 {
 		// Creates X, Y pixel values
 		matrix[i] = make([][]uint8, X)
 		for j := range matrix {
-			R, G, B, _ := img.At(i, j).RGBA()
+			R, G, B, _ := img.At(j, i).RGBA()
 			// bitwise operation to normalize image values
 			matrix[i][j] = []uint8{uint8(R >> 8), uint8(G >> 8), uint8(B >> 8)}
 		}
@@ -100,17 +100,35 @@ func downSample(matrix [][][]uint8, kernelSize int) ([][][]uint8, error) {
 	return downSampledMatrix, nil
 }
 
-func exportImage(matrix [][][]uint8, fileName string) {
-	Y, X := len(matrix), len(matrix[1])
-	imgCanvas := image.NewNRGBA(image.Rect(0, 0, X, Y))
+func exportImage(matrix interface{}, fileName string) {
+	var Y, X int
+	var imgCanvas *image.NRGBA
 
-	for i := 0; i < Y; i++ {
-		for j := 0; j < X; j++ {
-			r := matrix[i][j][0]
-			g := matrix[i][j][1]
-			b := matrix[i][j][2]
-			imgCanvas.Set(i, j, color.RGBA{r, g, b, 255}) // Assuming full opacity
+	switch m := matrix.(type) {
+	case [][][]uint8:
+		Y, X = len(m), len(m[0])
+		imgCanvas = image.NewNRGBA(image.Rect(0, 0, X, Y))
+		for i := 0; i < Y; i++ {
+			for j := 0; j < X; j++ {
+				r := m[i][j][0]
+				g := m[i][j][1]
+				b := m[i][j][2]
+				imgCanvas.Set(j, i, color.RGBA{r, g, b, 255}) // Assuming full opacity
+			}
 		}
+	case [][][]float64:
+		Y, X = len(m), len(m[0])
+		imgCanvas = image.NewNRGBA(image.Rect(0, 0, X, Y))
+		for i := 0; i < Y; i++ {
+			for j := 0; j < X; j++ {
+				r := uint8(math.Min(math.Max(m[i][j][0]*255.0, 0), 255))
+				g := uint8(math.Min(math.Max(m[i][j][1]*255.0, 0), 255))
+				b := uint8(math.Min(math.Max(m[i][j][2]*255.0, 0), 255))
+				imgCanvas.Set(j, i, color.RGBA{r, g, b, 255}) // Assuming full opacity
+			}
+		}
+	default:
+		panic("Unsupported matrix type")
 	}
 
 	// Create a file to save the image
@@ -132,6 +150,9 @@ func desaturateInplace(matrix [][][]uint8) {
 	Y, X := len(matrix), len(matrix[1])
 	for i := 0; i < Y; i++ {
 		for j := 0; j < X; j++ {
+			if len(matrix[i][j]) == 0 {
+				continue
+			}
 			r := matrix[i][j][0]
 			g := matrix[i][j][1]
 			b := matrix[i][j][2]
@@ -143,22 +164,46 @@ func desaturateInplace(matrix [][][]uint8) {
 	}
 }
 
-func asciiIamge(matrix [][][]uint8) [][][]rune {
-	Y, X := len(matrix), len(matrix[0])
+func angleAsciiChar(angle uint8) rune {
+	f_angle := float64(angle) / 255
+
+	switch {
+	case f_angle == 0.5:
+		return '_' // Return space when angle is exactly 0
+	case f_angle > 0.6:
+		return '/' // Return underscore when angle is abote 0.6
+	case f_angle < 0.4:
+		return '\\' // Return backslash when angle is below 0.4
+	case f_angle == 1:
+		return '|' // Return pipe when angle is exactly 1
+	default:
+		return ' ' // Return slash when angle is around 0.5
+	}
+}
+
+func getAsciiChar(value float64, angled bool) rune {
 	asciiTable := []rune{' ', ',', ';', 'c', 'o', 'P', 'O', '?', '@', '▓'}
+	if angled {
+		return angleAsciiChar(uint8(value * 255))
+	}
+	luminance := uint8(int(math.Floor(value * 9.0)))
+	return asciiTable[luminance]
+}
+
+func asciiIamge(matrix [][][]uint8, angled bool) [][][]rune {
+	Y, X := len(matrix), len(matrix[0])
 	asciiMatrix := make([][][]rune, Y)
 	for i := range asciiMatrix {
 		asciiMatrix[i] = make([][]rune, X)
-		for j := range asciiMatrix {
-			luminance := uint8(int(math.Floor(float64(matrix[j][i][0]) / 255.0 * 9.0)))
-			asciiMatrix[i][j] = make([]rune, 1)
-			asciiMatrix[i][j][0] = asciiTable[luminance]
+		for j := range asciiMatrix[i] {
+			luminance := float64(matrix[i][j][0]) / 255.0
+			asciiMatrix[i][j] = []rune{getAsciiChar(luminance, angled)}
 		}
 	}
 	return asciiMatrix
 }
 
-func sobelFilter(matrix [][][]uint8) ([][][]uint8, error) {
+func sobelFilter(matrix [][][]uint8) ([][][]uint8, [][][]uint8, error) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered from panic in sobelFilter:", r)
@@ -167,21 +212,24 @@ func sobelFilter(matrix [][][]uint8) ([][][]uint8, error) {
 
 	// Check if matrix is empty
 	if len(matrix) == 0 || len(matrix[0]) == 0 || len(matrix[0][0]) == 0 {
-		return nil, fmt.Errorf("input matrix is empty")
+		return nil, nil, fmt.Errorf("input matrix is empty")
 	}
 
 	Y, X, dim := len(matrix), len(matrix[0]), len(matrix[0][0])
 
 	// Define Sobel kernels
-	kernelX := [][]int{{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}}
-	kernelY := [][]int{{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}}
+	kernelX := [][]float64{{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}}
+	kernelY := [][]float64{{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}}
 
-	// Create result matrix
+	// Create result matrices
 	sobelMatrix := make([][][]uint8, Y)
+	gradientMatrix := make([][][]uint8, Y)
 	for i := range sobelMatrix {
 		sobelMatrix[i] = make([][]uint8, X)
+		gradientMatrix[i] = make([][]uint8, X)
 		for j := range sobelMatrix[i] {
 			sobelMatrix[i][j] = make([]uint8, dim)
+			gradientMatrix[i][j] = make([]uint8, dim)
 		}
 	}
 
@@ -189,24 +237,32 @@ func sobelFilter(matrix [][][]uint8) ([][][]uint8, error) {
 	for y := 1; y < Y-1; y++ {
 		for x := 1; x < X-1; x++ {
 			for d := 0; d < dim; d++ {
-				gx, gy := 0, 0
+				gx, gy := 0.0, 0.0
 				for i := -1; i <= 1; i++ {
 					for j := -1; j <= 1; j++ {
 						if len(matrix[y+i][x+j]) == 0 {
 							continue
 						}
-						pixel := int(matrix[y+i][x+j][d])
+						pixel := float64(matrix[y+i][x+j][d])
+
 						gx += pixel * kernelX[i+1][j+1]
 						gy += pixel * kernelY[i+1][j+1]
 					}
 				}
-				magnitude := uint8(math.Sqrt(float64(gx*gx + gy*gy)))
+				magnitude := uint8(math.Abs(gx) + math.Abs(gy))
 				sobelMatrix[y][x][d] = magnitude
+
+				// Calculate gradient direction and normalize to -1 - 1 range
+				gradient := math.Atan2(gy, gx)/math.Pi*0.5 + 0.5
+				// if gradient != 0.5 {
+				// 	fmt.Println(gradient)
+				// }
+				gradientMatrix[y][x][d] = uint8(gradient * 255.0)
 			}
 		}
 	}
 
-	return sobelMatrix, nil
+	return sobelMatrix, gradientMatrix, nil
 }
 
 func differenceOfGaussians(matrix [][][]uint8) ([][][]uint8, error) {
@@ -398,7 +454,7 @@ func main() {
 	exportImage(dMatrix, "static/desaturated.png")
 	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
 
-	ascii := asciiIamge(dMatrix)
+	ascii := asciiIamge(dMatrix, false)
 	fmt.Println("Image shape Y:", len(ascii), "X:", len(ascii[0]))
 	printAsciiArt(ascii)
 
@@ -407,10 +463,20 @@ func main() {
 		fmt.Println("Error in gaussiansDiff:", err)
 	}
 	exportImage(gaussiansDiff, "static/gaussDiff.png")
-
-	sobelMatrix, err := sobelFilter(matrix)
+	desaturateInplace(matrix)
+	sobelMatrix, gradientMatrix, err := sobelFilter(matrix)
 	if err != nil {
 		fmt.Println("Error in sobelFilter:", err)
+		return
 	}
+	dGradientMatrix, err := downSample(gradientMatrix, 8)
+	if err != nil {
+		fmt.Println("Error in downSample:", err)
+		// Handle the error appropriately
+		return
+	}
+	ascii = asciiIamge(dGradientMatrix, true)
+	printAsciiArt(ascii)
 	exportImage(sobelMatrix, "static/sobelFilter.png")
+	exportImage(gradientMatrix, "static/gradientMatrix.png")
 }
