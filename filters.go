@@ -166,18 +166,20 @@ func desaturateInplace(matrix [][][]uint8) {
 
 func angleAsciiChar(angle uint8) rune {
 	f_angle := float64(angle) / 255
-
+	const (
+		MAGNITUDE_THRESHOLD = 0.1 // 30 /255 ->  0.11 Adjust this value as needed
+	)
 	switch {
-	case f_angle == 0.5:
-		return '_' // Return space when angle is exactly 0
-	case f_angle > 0.6:
-		return '/' // Return underscore when angle is abote 0.6
-	case f_angle < 0.4:
-		return '\\' // Return backslash when angle is below 0.4
-	case f_angle == 1:
-		return '|' // Return pipe when angle is exactly 1
+	case f_angle == 0.5-MAGNITUDE_THRESHOLD || f_angle == 0.5+MAGNITUDE_THRESHOLD:
+		return '_'
+	case f_angle > 0.5+MAGNITUDE_THRESHOLD:
+		return '/'
+	case f_angle < 0.5-MAGNITUDE_THRESHOLD:
+		return '\\'
+	case f_angle > 1-MAGNITUDE_THRESHOLD:
+		return '|'
 	default:
-		return ' ' // Return slash when angle is around 0.5
+		return ' '
 	}
 }
 
@@ -209,6 +211,9 @@ func sobelFilter(matrix [][][]uint8) ([][][]uint8, [][][]uint8, error) {
 			fmt.Println("Recovered from panic in sobelFilter:", r)
 		}
 	}()
+	const (
+		MAGNITUDE_THRESHOLD = 30 // Adjust this value as needed
+	)
 
 	// Check if matrix is empty
 	if len(matrix) == 0 || len(matrix[0]) == 0 || len(matrix[0][0]) == 0 {
@@ -249,15 +254,19 @@ func sobelFilter(matrix [][][]uint8) ([][][]uint8, [][][]uint8, error) {
 						gy += pixel * kernelY[i+1][j+1]
 					}
 				}
-				magnitude := uint8(math.Abs(gx) + math.Abs(gy))
+				// magnitude := uint8(math.Abs(gx) + math.Abs(gy))
+				magnitude := uint8(math.Min(255.0, math.Abs(gx)+math.Abs(gy)))
 				sobelMatrix[y][x][d] = magnitude
 
-				// Calculate gradient direction and normalize to -1 - 1 range
-				gradient := math.Atan2(gy, gx)/math.Pi*0.5 + 0.5
-				// if gradient != 0.5 {
-				// 	fmt.Println(gradient)
-				// }
-				gradientMatrix[y][x][d] = uint8(gradient * 255.0)
+				// Calculate angle and bin it
+				if magnitude > MAGNITUDE_THRESHOLD {
+					angle := math.Atan2(float64(gy), float64(gx))
+					// Normalize angle to [0, 1) range
+					binned := uint8(angle/math.Pi*0.5 + 0.5)
+					gradientMatrix[y][x][d] = binned
+				} else {
+					gradientMatrix[y][x][d] = 127 // Special value for non-edge pixels
+				}
 			}
 		}
 	}

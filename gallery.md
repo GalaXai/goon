@@ -5,16 +5,21 @@
   <th>Original</th>
   <th>Downsampled</th>
   <th>Desaturated</th>
-  <th>diffOfGaussians</th>
-  <th>sobelFilter</th>
 </tr>
 <tr>
   <td><img src="static/test.png" style="width: 200px; height: 200px" alt="Original"></td>
   <td><img src="static/downsapled.png" style="width: 200px; height: 200px" alt="Downsampled"></td>
   <td><img src="static/desaturated.png" style="width: 200px; height: 200px" alt="Desaturated"></td>
+</tr>
+<tr>
+  <th>diffOfGaussians</th>
+  <th>sobelFilter</th>
+  <th>sobelFilter Gradients</th>
+</tr>
+<tr>
   <td><img src="static/gaussDiff.png" style="width: 200px; height: 200px" alt="difference of gaussians"></td>
   <td><img src="static/sobelFilter.png" style="width: 200px; height: 200px" alt="sobel filter"></td>
-
+  <td><img src="static/gradientMatrix.png" style="width: 200px; height: 200px" alt="sobelFilter Gradients"></td>
 </tr>
 </table>
 
@@ -78,4 +83,56 @@
 ?????????????????????O???????????O;,,,,,,,,,,,,,,,,,,,O??
 ?????????????????????????????????Oc,,,,,,,,,,,,,,,,,,,;P?
 ?????????????????????????????????Oc,,,,,,,,,,,,,,,,,,,,,c
-```      
+```
+## Cooking
+```bash
+                                                 \
+                                                 \
+                                                 \
+                                                 \
+                                                 \
+                                                 \
+                                                 \
+                   \\\\\\\\\\\\                  \
+                 \\\          \\\                \
+               \\                \\              \
+              \\                  \\\            \
+            \\                      \\           \
+           \\                        \\          \
+           \                          \\         \
+          \                            \         \
+         \\                            \\        \
+         \                              \        \
+        \\                               \       \
+        \                                \       \
+        \                                \\      \
+       \                                  \      \
+       \                                  \      \
+       \                                  \      \
+       \                                  \      \
+       \                                  \      \
+       \                                  \      \
+       \                                  \      \
+       \                                  \      \
+       \                                  \      \
+       \\                                 \      \
+        \                                \\      \
+        \                                \       \
+        \\                              \\       \
+         \                              \        \
+         \\                            \\        \
+          \\                          \\         \
+           \\                         \          \
+            \\                       \           \
+             \\                    \\            \
+              \\                  \\             \
+               \\\              \\\              \
+                 \\\\        \\\\                \
+                    \\\\\\\\\\                   \
+                                                 \
+                                                 \
+                                                 \
+                                                 \
+                                                 \
+                                                 \
+```
