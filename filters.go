@@ -260,7 +260,7 @@ func sobelFilter(matrix [][][]uint8) ([][][]uint8, [][][]uint8, error) {
 
 				// Calculate angle and bin it
 				if magnitude > MAGNITUDE_THRESHOLD {
-					angle := math.Atan2(float64(gy), float64(gx))
+					angle := math.Atan2(gy, gx)
 					// Normalize angle to [0, 1) range
 					binned := uint8(angle/math.Pi*0.5 + 0.5)
 					gradientMatrix[y][x][d] = binned
