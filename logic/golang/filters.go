@@ -440,7 +440,6 @@ func mergeAsciiImages(ascii1, ascii2 [][][]rune) [][][]rune {
 }
 
 // Uncomment for testing
-
 func Main() {
 	//open the image
 	file, err := os.Open("../../static/cat.png")
