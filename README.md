@@ -1,3 +1,3 @@
 # goon
 
-Golang + HTMX learning project to learn the techs
+Golang + React(for frontend) learning project to learn the techs
