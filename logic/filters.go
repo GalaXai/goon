@@ -30,7 +30,7 @@ func getImageMatrix(img image.Image) [][][]uint8 {
 	for i := range matrix {
 		// Creates X, Y pixel values
 		matrix[i] = make([][]uint8, X)
-		for j := range matrix {
+		for j := range matrix[i] {
 			R, G, B, _ := img.At(j, i).RGBA()
 			// bitwise operation to normalize image values
 			matrix[i][j] = []uint8{uint8(R >> 8), uint8(G >> 8), uint8(B >> 8)}
@@ -440,15 +440,14 @@ func mergeAsciiImages(ascii1, ascii2 [][][]rune) [][][]rune {
 }
 
 // Uncomment for testing
-func Main() {
+func main() {
 	//open the image
-	file, err := os.Open("../../static/cat.png")
+	file, err := os.Open("../static/galax.png")
 	if err != nil {
 		fmt.Println("Error opening image file:", err)
 		return
 	}
 	defer file.Close()
-
 	img, _, err := image.Decode(file)
 	if err != nil {
 		fmt.Println("Error decoding image :", err)
@@ -458,18 +457,17 @@ func Main() {
 	GRADIENT_TRESHOLD := uint8(80)
 	img_matrix := getImageMatrix(img)
 	fmt.Println("Image shape Y:", len(img_matrix), "X:", len(img_matrix[0]))
-
 	dMatrix, err := downSample(img_matrix, 8)
 	if err != nil {
 		fmt.Println("Error in downSample:", err)
 		// Handle the error appropriately
 		return
 	}
-	exportImage(dMatrix, "../../static/downsapled.png")
+	exportImage(dMatrix, "../static/downsapled.png")
 	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
 	// Check if desaturace -> downSample is different form downSample -> destaturate
 	desaturateInplace(dMatrix)
-	exportImage(dMatrix, "../../static/desaturated.png")
+	exportImage(dMatrix, "../static/desaturated.png")
 	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
 
 	ascii := asciiIamge(dMatrix, false, ANGLE_THRESHOLD)
@@ -480,7 +478,7 @@ func Main() {
 	if err != nil {
 		fmt.Println("Error in gaussiansDiff:", err)
 	}
-	exportImage(gaussiansDiff, "../../static/gaussDiff.png")
+	exportImage(gaussiansDiff, "../static/gaussDiff.png")
 	desaturateInplace(img_matrix)
 	sobelMatrix, gradientMatrix, err := sobelFilter(img_matrix, GRADIENT_TRESHOLD)
 	if err != nil {
@@ -497,6 +495,6 @@ func Main() {
 	printAsciiArt(merged_ascii)
 	merged_ascii = mergeAsciiImages(merged_ascii, ascii)
 	printAsciiArt(merged_ascii)
-	exportImage(sobelMatrix, "../../static/sobelFilter.png")
-	exportImage(gradientMatrix, "../../static/gradientMatrix.png")
+	exportImage(sobelMatrix, "../static/sobelFilter.png")
+	exportImage(gradientMatrix, "../static/gradientMatrix.png")
 }
