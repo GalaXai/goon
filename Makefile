@@ -4,6 +4,8 @@ FRONT_PATH=./front
 
 build-backend:
 	@ cd ${LOGIC_PATH} && go build -o ${BINARY}
+	$(info Finished building backend)
+
 
 run-backend: build-backend
 	@${LOGIC_PATH}${BINARY} &
@@ -15,7 +17,13 @@ dev-frontend:
 
 build: build-backend build-frontend
 
-run: run-backend
+run: build-backend run-backend
+
+run-no-build:
+	@${LOGIC_PATH}${BINARY} &
+
+kill-backend:
+	@pkill -f "${BINARY}" || echo "Backend process not found"
 
 run-all:
-	@make -j2 run-backend dev-frontend		
+	@make -j2 build run-backend dev-frontend
