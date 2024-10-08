@@ -1,13 +1,12 @@
 BINARY= bin/endpoints.out
-LOGIC_PATH=./logic/golang/
+LOGIC_PATH=./logic/
 FRONT_PATH=./front
 
 build-backend:
 	@ cd ${LOGIC_PATH} && go build -o ${BINARY}
 
 run-backend: build-backend
-	@${LOGIC_PATH}${BINARY}
-
+	@${LOGIC_PATH}${BINARY} &
 build-frontend:	
 	@cd ${FRONT_PATH} && npm install && npm run build
 
@@ -18,4 +17,5 @@ build: build-backend build-frontend
 
 run: run-backend
 
-run-all: run-backend dev-frontend
+run-all:
+	@make -j2 run-backend dev-frontend		
