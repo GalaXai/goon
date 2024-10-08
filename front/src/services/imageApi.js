@@ -1,19 +1,11 @@
 import axiosInstance from '../config/axiosConfig';
 
-export const fetchImage = () => {
-  return axiosInstance.get('/image')
+export const loadImage = (base64Image) => {
+  console.log('loadImage function called'); // Add this line
+  return axiosInstance.post('/load-image', { image_base64: base64Image })
     .then(response => response.data)
     .catch(error => {
-      console.error('Error fetching image:', error);
-      throw error;
-    });
-};
-
-export const createImage = (data) => {
-  return axiosInstance.post('/image', data)
-    .then(response => response.data)
-    .catch(error => {
-      console.error('Error creating image:', error);
+      console.error('Error loading image:', error);
       throw error;
     });
 };

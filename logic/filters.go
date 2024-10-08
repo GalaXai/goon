@@ -440,7 +440,7 @@ func mergeAsciiImages(ascii1, ascii2 [][][]rune) [][][]rune {
 }
 
 // Uncomment for testing
-func main() {
+func Main() {
 	//open the image
 	file, err := os.Open("../static/galax.png")
 	if err != nil {
