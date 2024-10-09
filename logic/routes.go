@@ -50,8 +50,6 @@ func NewAPIServer(listenAddr string) *APIServer {
 
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
-
-	router.HandleFunc("/image", makeHTTPHandleFunc(s.handleImage))
 	router.HandleFunc("/load-image", makeHTTPHandleFunc(s.handleLoadImage))
 
 	log.Println("JSON API server running on port", s.listenAddr)
@@ -69,7 +67,7 @@ func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) erro
 	}
 
 	// Remove the data URL prefix if present
-	base64Data := req.ImageBase64
+	base64Data := req.Base64Image
 	if prefix := "data:image/png;base64,"; strings.HasPrefix(base64Data, prefix) {
 		base64Data = base64Data[len(prefix):]
 	}
@@ -79,7 +77,6 @@ func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return fmt.Errorf("error decoding base64 image: %v", err)
 	}
-
 	// Decode image
 	img, _, err := image.Decode(bytes.NewReader(imgData))
 	if err != nil {
@@ -87,28 +84,40 @@ func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) erro
 	}
 
 	// Convert image to matrix
-	matrix := getImageMatrix(img)
+	originalMatrix := getImageMatrix(img)
 
-	response := ImageResponse{
-		Matrix: matrix,
-		Shape:  img.Bounds().Max,
+	// Desaturate
+	desaturatedMatrix := desaturate(originalMatrix)
+	// Downsample
+	downsampledMatrix, err := downSample(desaturatedMatrix, 8)
+	if err != nil {
+		return fmt.Errorf("error downsampling image: %v", err)
 	}
 
-	return WriteJSON(w, http.StatusOK, response)
-}
-func (s *APIServer) handleImage(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
-		return s.handleGetImage(w, r)
+	// Difference of Gaussians
+	gaussiansDiff, err := differenceOfGaussians(downsampledMatrix)
+	if err != nil {
+		return fmt.Errorf("error applying difference of Gaussians: %v", err)
 	}
-	if r.Method == "POST" {
-		return s.handleCreateImage(w, r) // no input?
+	// Sobel fiter -> __, edges(gradient at dataPoint)
+	gradientThreshold := req.GradientThreshold
+	if gradientThreshold <= 0 {
+		gradientThreshold = 80
 	}
-	return fmt.Errorf("Method not allowed %s", r.Method)
-}
+	sobelMatrix, gradientMatrix, err := sobelFilter(gaussiansDiff, gradientThreshold)
+	if err != nil {
+		return fmt.Errorf("error in sobelFilter: %v", err)
+	}
 
-func (s *APIServer) handleGetImage(w http.ResponseWriter, r *http.Request) error {
-	return nil
-}
-func (s *APIServer) handleCreateImage(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	// Create the Base64ImageResponse
+	Base64ImageResponse := Base64ImageResponse{
+		OriginalImage:      matrixToBase64(originalMatrix),
+		DesaturatedImage:   matrixToBase64(desaturatedMatrix),
+		DownsampledImage:   matrixToBase64(downsampledMatrix),
+		GaussiansDiffImage: matrixToBase64(gaussiansDiff),
+		SobelImage:         matrixToBase64(sobelMatrix),
+		GradientImage:      matrixToBase64(gradientMatrix),
+	}
+
+	return WriteJSON(w, http.StatusOK, Base64ImageResponse)
 }

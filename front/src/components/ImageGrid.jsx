@@ -1,35 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './ImageGrid.css';
 import { loadImage } from '../services/imageApi';
 
 const ImageGrid = ({ mainImage }) => {
-  // Create an array of 8 elements, first are the provided images, rest are placeholders
-  const imageArray = [mainImage, ...Array(8).fill(null)].slice(0, 8);
+  const [imageArray, setImageArray] = useState(Array(8).fill(null));
 
-  loadImage(mainImage)
-  .then(result => {
-    console.log('Image matrix:', result.matrix);
-    console.log('Image shape:', result.shape);
-    // Process the image matrix and shape as needed
-  })
-  .catch(error => {
-    console.error('Failed to load image:', error);
-    // Handle the error appropriately
-  });
+  useEffect(() => {
+    if (mainImage) {
+      loadImage(mainImage, 50 )
+        .then(result => {
+          console.log('Images loaded successfully');
+          setImageArray([
+            { src: `data:image/png;base64,${result.originalImage}`, label: 'Original' },
+            { src: `data:image/png;base64,${result.desaturatedImage}`, label: 'Desaturated' },
+            { src: `data:image/png;base64,${result.downsampledImage}`, label: 'Downsampled' },
+            { src: `data:image/png;base64,${result.gaussiansDiffImage}`, label: 'Gaussians Diff' },
+            { src: `data:image/png;base64,${result.sobelImage}`, label: 'Sobel' },
+            { src: `data:image/png;base64,${result.gradientImage}`, label: 'Gradient' },
+            // Fill remaining slots with null
+            ...Array(2).fill(null)
+          ]);
+          console.log(imageArray)
+        })
+        .catch(error => {
+          console.error('Failed to load image:', error);
+          // Handle the error appropriately
+        });
+    }
+  }, [mainImage]);
 
-  return (
-    <div className="image-grid">
-      {imageArray.map((image, index) => (
-        <div key={index} className="image-container">
-          <h3>Image {index + 1}</h3>
-          {image ? (
-            <img src={image} alt={`Converted ${index + 1}`} className="grid-image" />
-          ) : (
-            <div className="placeholder">Placeholder</div>
-          )}
-        </div>
-      ))}
-    </div>
+return (
+  <div className="image-grid">
+    {imageArray.map((image, index) => (
+      <div key={index} className="image-container">
+        <h3>{image ? image.label : `Image ${index + 1}`}</h3>
+        {image ? (
+          <img src={image.src} alt={image.label} className="grid-image" />
+        ) : (
+          <div className="placeholder">Placeholder</div>
+        )}
+      </div>
+    ))}
+  </div>
   );
 };
 

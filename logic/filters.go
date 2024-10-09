@@ -164,6 +164,28 @@ func desaturateInplace(matrix [][][]uint8) {
 	}
 }
 
+func desaturate(matrix [][][]uint8) [][][]uint8 {
+	Y, X := len(matrix), len(matrix[0])
+	desaturatedMatrix := make([][][]uint8, Y)
+
+	for i := 0; i < Y; i++ {
+		desaturatedMatrix[i] = make([][]uint8, X)
+		for j := 0; j < X; j++ {
+			if len(matrix[i][j]) == 0 {
+				desaturatedMatrix[i][j] = []uint8{}
+				continue
+			}
+			r := matrix[i][j][0]
+			g := matrix[i][j][1]
+			b := matrix[i][j][2]
+			gray := uint8(float32(0.299)*float32(r) + float32(0.587)*float32(g) + float32(0.114)*float32(b))
+			desaturatedMatrix[i][j] = []uint8{gray, gray, gray}
+		}
+	}
+
+	return desaturatedMatrix
+}
+
 func angleAsciiChar(angle uint8, MAGNITUDE_THRESHOLD float64) rune {
 	f_angle := float64(angle) / 255
 	switch {

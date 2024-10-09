@@ -19,11 +19,6 @@ const App = () => {
         <div key={index}>
           <h2>Image Set {index + 1}</h2>
           <ImageGrid mainImage={base64} />
-          <textarea
-            value={base64}
-            readOnly
-            style={{ width: '100%', height: '100px', marginTop: '10px' }}
-          />
         </div>
       ))}
     </div>
