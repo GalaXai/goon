@@ -12,18 +12,19 @@ run-backend: build-backend
 build-frontend:	
 	@cd ${FRONT_PATH} && npm install && npm run build
 
-dev-frontend:
+run-frontend:
 	@cd ${FRONT_PATH} && npm run dev
 
 build: build-backend build-frontend
 
-run: build-backend run-backend
+run: kill build-backend run-backend run-frontend
 
 run-no-build:
 	@${LOGIC_PATH}${BINARY} &
 
-kill-backend:
-	@pkill -f "${BINARY}" || echo "Backend process not found"
+kill:
+	@-pkill -f "${BINARY}" || true
+	@echo "Attempted to kill backend process"
 
 run-all:
 	@make -j2 build run-backend dev-frontend

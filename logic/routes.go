@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -25,13 +26,15 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Blue text
 		log.Printf("\033[34mReceived request to %s\033[0m", r.URL.Path)
+		startTime := time.Now()
 		if err := f(w, r); err != nil {
 			// Red text
 			log.Printf("\033[31mError handling request: %v\033[0m", err)
 			WriteJSON(w, http.StatusBadRequest, apiError{Error: err.Error()})
 		} else {
-			// Green tesxt
-			log.Printf("\033[32mRequest to %s handled successfully\033[0m", r.URL.Path)
+			duration := time.Since(startTime)
+			// Green text for success, yellow text for duration
+			log.Printf("\033[32mRequest to %s handled successfully\033[0m \033[33m(took %v)\033[0m", r.URL.Path, duration)
 		}
 	}
 }
@@ -65,29 +68,50 @@ func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) erro
 		return fmt.Errorf("error decoding request body: %v", err)
 	}
 
-	var originalMatrix Matrix3D
-	var err error
+	// Generate a unique key for the image
+	cacheKey := generateCacheKey(req.Base64Image)
 
-	if isBase64Image(req.Base64Image) {
-		// Process as base64 image
+	// Try to get the cached results
+	cache := getImageCache(cacheKey)
+
+	var originalMatrix, desaturatedMatrix, downsampledMatrix, gaussiansDiff Matrix3D
+	var err error
+	if cache == nil {
 		originalMatrix, err = base64ToMatrix(req.Base64Image)
 		if err != nil {
 			return fmt.Errorf("error converting base64 to matrix: %v", err)
 		}
-	}
 
-	// Desaturate
-	desaturatedMatrix := desaturate(originalMatrix)
-	// Downsample
-	downsampledMatrix, err := downSample(desaturatedMatrix, 8)
-	if err != nil {
-		return fmt.Errorf("error downsampling image: %v", err)
-	}
+		// Desaturate
+		desaturatedMatrix = desaturate(originalMatrix)
 
-	// Difference of Gaussians
-	gaussiansDiff, err := differenceOfGaussians(downsampledMatrix)
-	if err != nil {
-		return fmt.Errorf("error applying difference of Gaussians: %v", err)
+		// Downsample
+		downsampledMatrix, err = downSample(desaturatedMatrix, 1)
+		if err != nil {
+			return fmt.Errorf("error downsampling image: %v", err)
+		}
+
+		// Difference of Gaussians
+		gaussiansDiff, err = differenceOfGaussians(downsampledMatrix)
+		if err != nil {
+			return fmt.Errorf("error applying difference of Gaussians: %v", err)
+		}
+		// Store the results in cache
+		cache = &ImageCache{
+			OriginalMatrix:    originalMatrix,
+			DesaturatedMatrix: desaturatedMatrix,
+			DownsampledMatrix: downsampledMatrix,
+			GaussiansDiff:     gaussiansDiff,
+			LastUsed:          time.Now(),
+		}
+		setImageCache(cacheKey, cache)
+	} else {
+		// Use cached results
+		originalMatrix = cache.OriginalMatrix
+		desaturatedMatrix = cache.DesaturatedMatrix
+		downsampledMatrix = cache.DownsampledMatrix
+		gaussiansDiff = cache.GaussiansDiff
+		cache.LastUsed = time.Now()
 	}
 	// Sobel fiter -> __, edges(gradient at dataPoint)
 	gradientThreshold := req.GradientThreshold

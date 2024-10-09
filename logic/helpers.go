@@ -67,3 +67,20 @@ func matrixToImage(matrix Matrix3D) image.Image {
 
 	return imgCanvas
 }
+
+func generateCacheKey(base64Image string) string {
+	// You might want to use a hash function here
+	return base64Image[:100]
+}
+
+func getImageCache(key string) *ImageCache {
+	cachesMutex.RLock()
+	defer cachesMutex.RUnlock()
+	return imageCaches[key]
+}
+
+func setImageCache(key string, cache *ImageCache) {
+	cachesMutex.Lock()
+	defer cachesMutex.Unlock()
+	imageCaches[key] = cache
+}

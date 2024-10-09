@@ -1,5 +1,10 @@
 package main
 
+import (
+	"sync"
+	"time"
+)
+
 type Matrix2D [][]uint8
 type Matrix3D [][][]uint8
 type RuneMatrix2D [][]rune
@@ -10,6 +15,17 @@ type ImageRequest struct {
 	GradientThreshold uint8  `json:"gradientThreshold"`
 }
 
+var imageCaches = make(map[string]*ImageCache)
+var cachesMutex sync.RWMutex
+
+type ImageCache struct {
+	OriginalMatrix    Matrix3D
+	DesaturatedMatrix Matrix3D
+	DownsampledMatrix Matrix3D
+	GaussiansDiff     Matrix3D
+	LastUsed          time.Time
+	mutex             sync.RWMutex
+}
 type ImageResponse struct {
 	OriginalMatrix      Matrix3D `json:"originalMatrix"`
 	DesaturatedMatrix   Matrix3D `json:"desaturatedMatrix"`
