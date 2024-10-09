@@ -18,7 +18,7 @@ console.log('VITE_API_BASE_URL:', getEnvVariable('VITE_API_BASE_URL'));
 
 const axiosInstance = axios.create({
   baseURL: baseURL,
-  timeout: 5000,
+  // timeout: 5000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

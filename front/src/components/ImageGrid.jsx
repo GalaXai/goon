@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './ImageGrid.css';
 import { loadImage } from '../services/imageApi';
 
-const ImageGrid = ({ mainImage }) => {
+const ImageGrid = ({ mainImage, gradientThreshold}) => {
   const [imageArray, setImageArray] = useState(Array(8).fill(null));
 
   useEffect(() => {
     if (mainImage) {
-      loadImage(mainImage, 50 )
+      loadImage(mainImage, gradientThreshold)
         .then(result => {
           console.log('Images loaded successfully');
           setImageArray([
@@ -27,7 +27,7 @@ const ImageGrid = ({ mainImage }) => {
           // Handle the error appropriately
         });
     }
-  }, [mainImage]);
+  }, [mainImage, gradientThreshold]);
 
 return (
   <div className="image-grid">
