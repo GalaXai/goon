@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"image"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -27,11 +23,14 @@ type apiError struct {
 
 func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Blue text
 		log.Printf("\033[34mReceived request to %s\033[0m", r.URL.Path)
 		if err := f(w, r); err != nil {
+			// Red text
 			log.Printf("\033[31mError handling request: %v\033[0m", err)
 			WriteJSON(w, http.StatusBadRequest, apiError{Error: err.Error()})
 		} else {
+			// Green tesxt
 			log.Printf("\033[32mRequest to %s handled successfully\033[0m", r.URL.Path)
 		}
 	}
@@ -66,25 +65,16 @@ func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) erro
 		return fmt.Errorf("error decoding request body: %v", err)
 	}
 
-	// Remove the data URL prefix if present
-	base64Data := req.Base64Image
-	if prefix := "data:image/png;base64,"; strings.HasPrefix(base64Data, prefix) {
-		base64Data = base64Data[len(prefix):]
-	}
+	var originalMatrix Matrix3D
+	var err error
 
-	// Decode base64 image
-	imgData, err := base64.StdEncoding.DecodeString(base64Data)
-	if err != nil {
-		return fmt.Errorf("error decoding base64 image: %v", err)
+	if isBase64Image(req.Base64Image) {
+		// Process as base64 image
+		originalMatrix, err = base64ToMatrix(req.Base64Image)
+		if err != nil {
+			return fmt.Errorf("error converting base64 to matrix: %v", err)
+		}
 	}
-	// Decode image
-	img, _, err := image.Decode(bytes.NewReader(imgData))
-	if err != nil {
-		return fmt.Errorf("error decoding image: %v", err)
-	}
-
-	// Convert image to matrix
-	originalMatrix := getImageMatrix(img)
 
 	// Desaturate
 	desaturatedMatrix := desaturate(originalMatrix)
