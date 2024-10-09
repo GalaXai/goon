@@ -211,7 +211,7 @@ func getAsciiChar(value float64, angled bool, MAGNITUDE_THRESHOLD float64) rune 
 	return asciiTable[luminance]
 }
 
-func asciiIamge(matrix [][][]uint8, angled bool, MAGNITUDE_THRESHOLD float64) [][][]rune {
+func asciiImage(matrix [][][]uint8, angled bool, MAGNITUDE_THRESHOLD float64) [][][]rune {
 	Y, X := len(matrix), len(matrix[0])
 	asciiMatrix := make([][][]rune, Y)
 	for i := range asciiMatrix {
@@ -222,6 +222,82 @@ func asciiIamge(matrix [][][]uint8, angled bool, MAGNITUDE_THRESHOLD float64) []
 		}
 	}
 	return asciiMatrix
+}
+
+func horizontalSobel(matrix [][][]uint8) ([][][]uint8, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic in horizontalSobel:", r)
+		}
+	}()
+
+	// Check if matrix is empty
+	if len(matrix) == 0 || len(matrix[0]) == 0 || len(matrix[0][0]) == 0 {
+		return nil, fmt.Errorf("input matrix is empty")
+	}
+
+	Y, X, dim := len(matrix), len(matrix[0]), len(matrix[0][0])
+	result := make([][][]uint8, Y)
+	for i := range result {
+		result[i] = make([][]uint8, X)
+		for j := range result[i] {
+			result[i][j] = make([]uint8, 3) // Gx and Gy and 0
+		}
+	}
+
+	for y := 0; y < Y; y++ {
+		for x := 1; x < X-1; x++ {
+			for d := 0; d < dim; d++ {
+				lum1 := int(matrix[y][x-1][d])
+				lum2 := int(matrix[y][x][d])
+				lum3 := int(matrix[y][x+1][d])
+
+				Gx := 3*lum1 + 0*lum2 + -3*lum3
+				Gy := 3*lum1 + 0*lum2 + -3*lum3
+
+				result[y][x][0] = uint8(Clamp(Gx, 0, 255))
+				result[y][x][1] = uint8(Clamp(Gy, 0, 255))
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func verticalSobel(horizontalGradient [][][]uint8, MAGNITUDE_THRESHOLD uint16) ([][][]uint8, error) {
+	Y, X := len(horizontalGradient), len(horizontalGradient[0])
+	result := make([][][]uint8, Y)
+	for i := range result {
+		result[i] = make([][]uint8, X)
+		for j := range result[i] {
+			result[i][j] = make([]uint8, 3) // magnitude and angle and 0
+		}
+	}
+
+	for y := 1; y < Y-1; y++ {
+		for x := 0; x < X; x++ {
+			grad1 := horizontalGradient[y-1][x]
+			grad2 := horizontalGradient[y][x]
+			grad3 := horizontalGradient[y+1][x]
+
+			Gx := 3*float64(grad1[0]) + 10*float64(grad2[0]) + 3*float64(grad3[0])
+			Gy := 3*float64(grad1[1]) + 0*float64(grad2[1]) + -3*float64(grad3[1])
+
+			magnitude := uint8(math.Min(255.0, math.Abs(Gx)+math.Abs(Gy)))
+			var angle uint8
+			// Calculate angle and bin @git
+			if uint16(magnitude) > MAGNITUDE_THRESHOLD {
+				// Convert angle to 0-255 range
+				angle = uint8((math.Atan2(float64(Gy), float64(Gx)) + math.Pi) / (2 * math.Pi) * 255)
+			} else {
+				angle = 0 // Special value for non-edge pixels
+			}
+			result[y][x][0] = magnitude
+			result[y][x][1] = angle
+		}
+	}
+
+	return result, nil
 }
 
 func sobelFilter(matrix [][][]uint8, MAGNITUDE_THRESHOLD uint8) ([][][]uint8, [][][]uint8, error) {
@@ -320,7 +396,7 @@ func differenceOfGaussians(matrix [][][]uint8) ([][][]uint8, error) {
 			result[i][j] = make([]uint8, dim)
 			for d := 0; d < dim; d++ {
 				diff := int(blurred2[i][j][d]) - int(blurred1[i][j][d])
-				result[i][j][d] = uint8(Clamp(diff, 0, 255))
+				result[i][j][d] = uint8(Clamp(diff*6, 0, 255))
 			}
 		}
 	}
@@ -348,12 +424,10 @@ func gaussianKernel(sigma float64) []float64 {
 		/* kernel[i] = exp(-(x^2) / (2 * sigma^2)) / (sqrt(2 * pi) * sigma) */
 		kernel[i] = math.Exp(-(x*x)/(2*sigma*sigma)) / (math.Sqrt(2*math.Pi) * sigma)
 		sum += kernel[i]
-
-		// normalize the kernel
-		for i := range kernel {
-			kernel[i] /= sum
-		}
-
+	}
+	// normalize the kernel
+	for i := range kernel {
+		kernel[i] /= sum
 	}
 	return kernel
 }
@@ -462,61 +536,61 @@ func mergeAsciiImages(ascii1, ascii2 [][][]rune) [][][]rune {
 }
 
 // Uncomment for testing
-func Main() {
-	//open the image
-	file, err := os.Open("../static/galax.png")
-	if err != nil {
-		fmt.Println("Error opening image file:", err)
-		return
-	}
-	defer file.Close()
-	img, _, err := image.Decode(file)
-	if err != nil {
-		fmt.Println("Error decoding image :", err)
-		return
-	}
-	ANGLE_THRESHOLD := 0.1
-	GRADIENT_TRESHOLD := uint8(80)
-	img_matrix := getImageMatrix(img)
-	fmt.Println("Image shape Y:", len(img_matrix), "X:", len(img_matrix[0]))
-	dMatrix, err := downSample(img_matrix, 8)
-	if err != nil {
-		fmt.Println("Error in downSample:", err)
-		// Handle the error appropriately
-		return
-	}
-	exportImage(dMatrix, "../static/downsapled.png")
-	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
-	// Check if desaturace -> downSample is different form downSample -> destaturate
-	desaturateInplace(dMatrix)
-	exportImage(dMatrix, "../static/desaturated.png")
-	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
+// func main() {
+// 	//open the image
+// 	file, err := os.Open("../static/galax.png")
+// 	if err != nil {
+// 		fmt.Println("Error opening image file:", err)
+// 		return
+// 	}
+// 	defer file.Close()
+// 	img, _, err := image.Decode(file)
+// 	if err != nil {
+// 		fmt.Println("Error decoding image :", err)
+// 		return
+// 	}
+// 	ANGLE_THRESHOLD := 0.1
+// 	GRADIENT_TRESHOLD := uint8(80)
+// 	img_matrix := getImageMatrix(img)
+// 	fmt.Println("Image shape Y:", len(img_matrix), "X:", len(img_matrix[0]))
+// 	dMatrix, err := downSample(img_matrix, 8)
+// 	if err != nil {
+// 		fmt.Println("Error in downSample:", err)
+// 		// Handle the error appropriately
+// 		return
+// 	}
+// 	exportImage(dMatrix, "../static/downsapled.png")
+// 	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
+// 	// Check if desaturace -> downSample is different form downSample -> destaturate
+// 	desaturateInplace(dMatrix)
+// 	exportImage(dMatrix, "../static/desaturated.png")
+// 	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
 
-	ascii := asciiIamge(dMatrix, false, ANGLE_THRESHOLD)
-	fmt.Println("Image shape Y:", len(ascii), "X:", len(ascii[0]))
-	printAsciiArt(ascii)
+// 	ascii := asciiIamge(dMatrix, false, ANGLE_THRESHOLD)
+// 	fmt.Println("Image shape Y:", len(ascii), "X:", len(ascii[0]))
+// 	printAsciiArt(ascii)
 
-	gaussiansDiff, err := differenceOfGaussians(dMatrix)
-	if err != nil {
-		fmt.Println("Error in gaussiansDiff:", err)
-	}
-	exportImage(gaussiansDiff, "../static/gaussDiff.png")
-	desaturateInplace(img_matrix)
-	sobelMatrix, gradientMatrix, err := sobelFilter(img_matrix, GRADIENT_TRESHOLD)
-	if err != nil {
-		fmt.Println("Error in sobelFilter:", err)
-		return
-	}
-	dGradientMatrix, err := downSample(gradientMatrix, 8)
-	d_sobelMatrix, err := downSample(sobelMatrix, 8)
-	ascii_1 := asciiIamge(d_sobelMatrix, false, ANGLE_THRESHOLD)
-	printAsciiArt(ascii_1)
-	ascii_2 := asciiIamge(dGradientMatrix, true, ANGLE_THRESHOLD)
-	printAsciiArt(ascii_2)
-	merged_ascii := mergeAsciiImages(ascii_2, ascii_1)
-	printAsciiArt(merged_ascii)
-	merged_ascii = mergeAsciiImages(merged_ascii, ascii)
-	printAsciiArt(merged_ascii)
-	exportImage(sobelMatrix, "../static/sobelFilter.png")
-	exportImage(gradientMatrix, "../static/gradientMatrix.png")
-}
+// 	gaussiansDiff, err := differenceOfGaussians(dMatrix)
+// 	if err != nil {
+// 		fmt.Println("Error in gaussiansDiff:", err)
+// 	}
+// 	exportImage(gaussiansDiff, "../static/gaussDiff.png")
+// 	desaturateInplace(img_matrix)
+// 	sobelMatrix, gradientMatrix, err := sobelFilter(img_matrix, GRADIENT_TRESHOLD)
+// 	if err != nil {
+// 		fmt.Println("Error in sobelFilter:", err)
+// 		return
+// 	}
+// 	dGradientMatrix, err := downSample(gradientMatrix, 8)
+// 	d_sobelMatrix, err := downSample(sobelMatrix, 8)
+// 	ascii_1 := asciiIamge(d_sobelMatrix, false, ANGLE_THRESHOLD)
+// 	printAsciiArt(ascii_1)
+// 	ascii_2 := asciiIamge(dGradientMatrix, true, ANGLE_THRESHOLD)
+// 	printAsciiArt(ascii_2)
+// 	merged_ascii := mergeAsciiImages(ascii_2, ascii_1)
+// 	printAsciiArt(merged_ascii)
+// 	merged_ascii = mergeAsciiImages(merged_ascii, ascii)
+// 	printAsciiArt(merged_ascii)
+// 	exportImage(sobelMatrix, "../static/sobelFilter.png")
+// 	exportImage(gradientMatrix, "../static/gradientMatrix.png")
+// }

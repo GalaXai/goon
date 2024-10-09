@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -52,18 +53,52 @@ func NewAPIServer(listenAddr string) *APIServer {
 
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
-	router.HandleFunc("/load-image", makeHTTPHandleFunc(s.handleLoadImage))
+	router.HandleFunc("/edge-detect-ascii", makeHTTPHandleFunc(s.handleEdgeDetectAscii))
+	router.HandleFunc("/color-downsample", makeHTTPHandleFunc(s.handleColorDownsample))
+
+	// Add CORS middleware
+	corsHandler := handlers.CORS(
+		handlers.AllowedOrigins([]string{"*"}), // Allow all origins
+		handlers.AllowedMethods([]string{"GET", "POST", "OPTIONS"}),
+		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
+	)
 
 	log.Println("JSON API server running on port", s.listenAddr)
-	http.ListenAndServe(s.listenAddr, router)
+	http.ListenAndServe(s.listenAddr, corsHandler(router))
 }
 
-func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleColorDownsample(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
 		return fmt.Errorf("method not allowed %s", r.Method)
 	}
 
-	var req ImageRequest
+	var req Base64ImageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return fmt.Errorf("error decoding request body: %v", err)
+	}
+
+	originalMatrix, err := base64ToMatrix(req.Base64Image)
+	if err != nil {
+		return fmt.Errorf("error converting base64 to matrix: %v", err)
+	}
+
+	// Downsample
+	downsampledMatrix, err := downSample(originalMatrix, 4)
+	if err != nil {
+		return fmt.Errorf("error downsampling image: %v", err)
+	}
+	log.Print(int(downsampledMatrix[0][0][0]), int(downsampledMatrix[0][0][1]), int(downsampledMatrix[0][0][2]))
+	// We convert to int since JsonWrite dosn't support uint8
+	intMatrix := matrixToInt(downsampledMatrix)
+	return WriteJSON(w, http.StatusOK, intMatrix)
+}
+
+func (s *APIServer) handleEdgeDetectAscii(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return fmt.Errorf("method not allowed %s", r.Method)
+	}
+
+	var req Base64EdgeDetectionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return fmt.Errorf("error decoding request body: %v", err)
 	}
@@ -86,7 +121,7 @@ func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) erro
 		desaturatedMatrix = desaturate(originalMatrix)
 
 		// Downsample
-		downsampledMatrix, err = downSample(desaturatedMatrix, 1)
+		downsampledMatrix, err = downSample(desaturatedMatrix, 4)
 		if err != nil {
 			return fmt.Errorf("error downsampling image: %v", err)
 		}
@@ -107,6 +142,7 @@ func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) erro
 		setImageCache(cacheKey, cache)
 	} else {
 		// Use cached results
+		log.Printf("Using cache")
 		originalMatrix = cache.OriginalMatrix
 		desaturatedMatrix = cache.DesaturatedMatrix
 		downsampledMatrix = cache.DownsampledMatrix
@@ -115,23 +151,38 @@ func (s *APIServer) handleLoadImage(w http.ResponseWriter, r *http.Request) erro
 	}
 	// Sobel fiter -> __, edges(gradient at dataPoint)
 	gradientThreshold := req.GradientThreshold
-	if gradientThreshold <= 0 {
-		gradientThreshold = 80
-	}
-	sobelMatrix, gradientMatrix, err := sobelFilter(gaussiansDiff, gradientThreshold)
+
+	horizontalSobel, err := horizontalSobel(gaussiansDiff)
 	if err != nil {
 		return fmt.Errorf("error in sobelFilter: %v", err)
 	}
-
+	verticalSobel, err := verticalSobel(horizontalSobel, gradientThreshold)
+	if err != nil {
+		return fmt.Errorf("error in sobelFilter: %v", err)
+	}
 	// Create the Base64ImageResponse
-	Base64ImageResponse := Base64ImageResponse{
+	Base64ImageResponse := Base64ImagesResponse{
 		OriginalImage:      matrixToBase64(originalMatrix),
 		DesaturatedImage:   matrixToBase64(desaturatedMatrix),
 		DownsampledImage:   matrixToBase64(downsampledMatrix),
 		GaussiansDiffImage: matrixToBase64(gaussiansDiff),
-		SobelImage:         matrixToBase64(sobelMatrix),
-		GradientImage:      matrixToBase64(gradientMatrix),
+		HorizontalSobel:    matrixToBase64(horizontalSobel),
+		VerticalSobel:      matrixToBase64(verticalSobel),
+	}
+	ascii_1 := asciiImage(horizontalSobel, true, 0.1)
+	ascii_2 := asciiImage(downsampledMatrix, false, 0.1)
+	merged_ascii := mergeAsciiImages(ascii_2, ascii_1)
+
+	runeMatrix2D := RuneMatrix3D{
+		Data:  merged_ascii,
+		Cols:  len(merged_ascii[0]),
+		Rows:  len(merged_ascii),
+		Depth: len(merged_ascii[0][0]),
 	}
 
-	return WriteJSON(w, http.StatusOK, Base64ImageResponse)
+	combinedResponse := CombinedResponse{
+		ImageResponse: Base64ImageResponse,
+		AsciiArt:      runeMatrix2D,
+	}
+	return WriteJSON(w, http.StatusOK, combinedResponse)
 }

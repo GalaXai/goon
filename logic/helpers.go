@@ -52,6 +52,20 @@ func matrixToBase64(matrix Matrix3D) string {
 	return base64.StdEncoding.EncodeToString(buf.Bytes())
 }
 
+func matrixToInt(matrix Matrix3D) [][][]int {
+	intMatrix := make([][][]int, len(matrix))
+	for i := range matrix {
+		intMatrix[i] = make([][]int, len(matrix[i]))
+		for j := range matrix[i] {
+			intMatrix[i][j] = make([]int, len(matrix[i][j]))
+			for k := range matrix[i][j] {
+				intMatrix[i][j][k] = int(matrix[i][j][k])
+			}
+		}
+	}
+	return intMatrix
+}
+
 func matrixToImage(matrix Matrix3D) image.Image {
 	Y, X := len(matrix), len(matrix[0])
 	imgCanvas := image.NewNRGBA(image.Rect(0, 0, X, Y))

@@ -7,6 +7,14 @@ build-backend:
 	$(info Finished building backend)
 
 
+watch-backend:
+	@echo "Watching for changes in backend files..."
+	@while true; do \
+		make run-backend; \
+		inotifywait -q -e modify -r ${LOGIC_PATH}; \
+		make kill; \
+	done
+
 run-backend: build-backend
 	@${LOGIC_PATH}${BINARY} &
 build-frontend:	
