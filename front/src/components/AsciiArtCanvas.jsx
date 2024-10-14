@@ -11,17 +11,21 @@ const AsciiArtTextBox = ({ asciiArt }) => {
     if (asciiArt && textareaRef.current && containerRef.current) {
       const { data, rows } = asciiArt;
 
-      // Convert numeric values to characters
-      const convertToChar = (value) => {
-        if (value === 0) return ' ';
-        return String.fromCharCode(value);
-      };
+    // Convert numeric values to characters
+    const convertToChar = (value) => {
+      if (value === 0) return ' ';
+      return  String.fromCharCode(value);
+    };
 
       // Set textarea content
-      const asciiString = data.map(layer => 
-        layer.map(row => row.map(convertToChar).join(''))
-      ).join('\n\n');
-      
+      const asciiString = data.map((layer, layerIndex) => {
+        const layerString = layer.map((row, rowIndex) => {
+          const rowString = row.map(convertToChar).join('');
+          return rowString;
+        }).join(' ');
+        return layerString;
+      }).join('\n\n');
+
       textareaRef.current.value = asciiString;
       const containerHeight = `${rows * (fontSize * 1.5)}em`;
       containerRef.current.style.height = containerHeight;
