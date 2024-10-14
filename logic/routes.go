@@ -121,7 +121,7 @@ func (s *APIServer) handleEdgeDetectAscii(w http.ResponseWriter, r *http.Request
 		desaturatedMatrix = desaturate(originalMatrix)
 
 		// Downsample
-		downsampledMatrix, err = downSample(desaturatedMatrix, 4)
+		downsampledMatrix, err = downSample(desaturatedMatrix, 1)
 		if err != nil {
 			return fmt.Errorf("error downsampling image: %v", err)
 		}
@@ -156,7 +156,7 @@ func (s *APIServer) handleEdgeDetectAscii(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		return fmt.Errorf("error in sobelFilter: %v", err)
 	}
-	verticalSobel, err := verticalSobel(horizontalSobel, gradientThreshold)
+	verticalSobel, err := verticalSobel(gaussiansDiff, gradientThreshold)
 	if err != nil {
 		return fmt.Errorf("error in sobelFilter: %v", err)
 	}
@@ -169,12 +169,12 @@ func (s *APIServer) handleEdgeDetectAscii(w http.ResponseWriter, r *http.Request
 		HorizontalSobel:    matrixToBase64(horizontalSobel),
 		VerticalSobel:      matrixToBase64(verticalSobel),
 	}
-	ascii_1 := asciiImage(horizontalSobel, true, 0.1)
-	ascii_2 := asciiImage(downsampledMatrix, false, 0.1)
+	ascii_1 := asciiImage(verticalSobel, true, 0.1)
+	ascii_2 := asciiImage(downsampledMatrix, false, 0.0)
 	merged_ascii := mergeAsciiImages(ascii_2, ascii_1)
 
-	runeMatrix2D := RuneMatrix3D{
-		Data:  merged_ascii,
+	runeMatrix3D := RuneMatrix3D{
+		Data:  ascii_1,
 		Cols:  len(merged_ascii[0]),
 		Rows:  len(merged_ascii),
 		Depth: len(merged_ascii[0][0]),
@@ -182,7 +182,7 @@ func (s *APIServer) handleEdgeDetectAscii(w http.ResponseWriter, r *http.Request
 
 	combinedResponse := CombinedResponse{
 		ImageResponse: Base64ImageResponse,
-		AsciiArt:      runeMatrix2D,
+		AsciiArt:      runeMatrix3D,
 	}
 	return WriteJSON(w, http.StatusOK, combinedResponse)
 }

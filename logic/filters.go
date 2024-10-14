@@ -300,7 +300,7 @@ func verticalSobel(horizontalGradient [][][]uint8, MAGNITUDE_THRESHOLD uint16) (
 	return result, nil
 }
 
-func sobelFilter(matrix [][][]uint8, MAGNITUDE_THRESHOLD uint8) ([][][]uint8, [][][]uint8, error) {
+func sobelFilter(matrix [][][]uint8, MAGNITUDE_THRESHOLD uint16) ([][][]uint8, [][][]uint8, error) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered from panic in sobelFilter:", r)
@@ -351,7 +351,7 @@ func sobelFilter(matrix [][][]uint8, MAGNITUDE_THRESHOLD uint8) ([][][]uint8, []
 				sobelMatrix[y][x][d] = magnitude
 
 				// Calculate angle and bin @git
-				if magnitude > MAGNITUDE_THRESHOLD {
+				if uint16(magnitude) > MAGNITUDE_THRESHOLD {
 					angle := math.Atan2(gy, gx)
 					// Normalize angle to [0, 1) range
 					binned := uint8(angle/math.Pi*0.5 + 0.5)
@@ -395,8 +395,8 @@ func differenceOfGaussians(matrix [][][]uint8) ([][][]uint8, error) {
 		for j := 0; j < X; j++ {
 			result[i][j] = make([]uint8, dim)
 			for d := 0; d < dim; d++ {
-				diff := int(blurred2[i][j][d]) - int(blurred1[i][j][d])
-				result[i][j][d] = uint8(Clamp(diff*6, 0, 255))
+				diff := (blurred2[i][j][d]) - (blurred1[i][j][d])
+				result[i][j][d] = uint8(Clamp(int(diff), 0, 255))
 			}
 		}
 	}
