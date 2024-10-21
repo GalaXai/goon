@@ -1,4 +1,4 @@
-import { createSignal, For, createResource, createMemo, JSX } from "solid-js";
+import { createSignal, For, createResource, createMemo, createEffect, JSX } from "solid-js";
 import { loadImage } from "~/services/imageApi";
 import { RuneMatrix3D } from '../../types/images';
 import AsciiArtCanvas from '../../AsciiArtCanvas/AsciiArtCanvas';
@@ -7,19 +7,29 @@ import './ImageGrid.css';
 interface ImageGridProps {
     mainImage: string;
     gradientThreshold: number;
-    key?: number | string; // Add this line
-}
+    threshold: number;
+    tau: number;
+    key?: number;
+  }
 
 export default function ImageGrid(props: ImageGridProps & JSX.HTMLAttributes<HTMLDivElement>) {
     const [imageArray, setImageArray] = createSignal(Array(6).fill(null));
     const [asciiArt, setAsciiArt] = createSignal<RuneMatrix3D | null>(null);
     
-    const imageParams = createMemo(() => ({ mainImage: props.mainImage, gradientThreshold: props.gradientThreshold }));
+    const imageParams = createMemo(() => ({ 
+        base64Image: props.mainImage, 
+        gradientThreshold: props.gradientThreshold,
+        threshold: props.threshold,
+        tau: props.tau,
+    }));
+
     const [imageData] = createResource(imageParams, async (params) => {
-        if (!params.mainImage) return null;
+        if (!params.base64Image) return null;
         try {
             console.log('Gradient Threshold:', props.gradientThreshold);
-            const results = await loadImage(props.mainImage, props.gradientThreshold);
+            console.log('Tau Value:', props.tau);
+            console.log('Threshold Value:', props.threshold);
+            const results = await loadImage(params);
             const { imageResponse, asciiArt } = results;
             setAsciiArt(asciiArt);
             setImageArray([

@@ -6,12 +6,16 @@ interface ImageResponse {
   asciiArt: RuneMatrix3D;
 }
 
-export const loadImage = (base64Image: string, gradientThreshold: number): Promise<ImageResponse> => {
+interface EdgeDetectionParams {
+  base64Image: string;
+  gradientThreshold: number;
+  threshold: number;
+  tau: number;
+}
+
+export const loadImage = (params: EdgeDetectionParams): Promise<ImageResponse> => {
   console.log('loadImage function called');
-  return axiosInstance.post<ImageResponse>('/edge-detect-ascii', {
-    base64Image,
-    gradientThreshold
-  })
+  return axiosInstance.post<ImageResponse>('/edge-detect-ascii', params)
     .then((response: AxiosResponse<ImageResponse>) => {
       console.log('Response data:', response.data);
       return response.data;
