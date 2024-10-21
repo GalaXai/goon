@@ -18,10 +18,10 @@ watch-backend:
 run-backend: build-backend
 	@${LOGIC_PATH}${BINARY} &
 build-frontend:	
-	@cd ${FRONT_PATH} && npm install && npm run build
+	@cd ${FRONT_PATH} && bun install && bun run build
 
 run-frontend:
-	@cd ${FRONT_PATH} && npm run dev
+	@cd ${FRONT_PATH} && bun run dev
 
 build: build-backend build-frontend
 
