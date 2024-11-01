@@ -217,7 +217,7 @@ func asciiImage(matrix [][][]uint8, angled bool, MAGNITUDE_THRESHOLD float64) []
 	for i := range asciiMatrix {
 		asciiMatrix[i] = make([][]rune, X)
 		for j := range asciiMatrix[i] {
-			luminance := float64(matrix[i][j][0]) / 255.0
+			luminance := float64(matrix[i][j][1]) / 255.0 // TODO: For now we are getting 2nd value just for vertical sobel adjust later
 			asciiMatrix[i][j] = []rune{getAsciiChar(luminance, angled, MAGNITUDE_THRESHOLD)}
 		}
 	}
@@ -292,7 +292,7 @@ func verticalSobel(horizontalGradient [][][]uint8, MAGNITUDE_THRESHOLD uint16) (
 			} else {
 				angle = 0 // Special value for non-edge pixels
 			}
-			result[y][x][0] = magnitude
+			result[y][x][0] = magnitude * 0 // TODO: REMOVE LAYER FOR NOW DOSN'T GIVE ANY INFO ON RETURN IMAGE
 			result[y][x][1] = angle
 		}
 	}
@@ -366,7 +366,7 @@ func sobelFilter(matrix [][][]uint8, MAGNITUDE_THRESHOLD uint16) ([][][]uint8, [
 	return sobelMatrix, gradientMatrix, nil
 }
 
-func differenceOfGaussians(matrix [][][]uint8) ([][][]uint8, error) {
+func differenceOfGaussians(matrix [][][]uint8, tau float64, threshold float64) ([][][]uint8, error) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered from panic in differenceOfGaussians:", r)
@@ -395,7 +395,19 @@ func differenceOfGaussians(matrix [][][]uint8) ([][][]uint8, error) {
 		for j := 0; j < X; j++ {
 			result[i][j] = make([]uint8, dim)
 			for d := 0; d < dim; d++ {
-				diff := (blurred2[i][j][d]) - (blurred1[i][j][d])
+				G_sigma := float64(blurred2[i][j][d])
+				G_k_sigma := float64(blurred1[i][j][d])
+
+				diff := G_sigma - tau*G_k_sigma
+				// TODO : thest thresholding and 1+tau seems good to get insides of the pictures.
+				// diff := (1+tau)*G_sigma - tau*G_k_sigma
+
+				// if diff >= threshold {
+				// 	diff = 255 // Set to maximum value if above threshold
+				// } else {
+				// 	diff = 0 // Set to minimum value if below threshold
+				// }
+
 				result[i][j][d] = uint8(Clamp(int(diff), 0, 255))
 			}
 		}
@@ -519,78 +531,18 @@ func printAsciiArt(asciiMatrix [][][]rune) {
 	}
 }
 
-func mergeAsciiImages(ascii1, ascii2 [][][]rune) [][][]rune {
-	Y, X := len(ascii1), len(ascii1[0])
+func mergeAsciiImages(ascii_1, ascii_2 [][][]rune) [][][]rune {
+	Y, X := len(ascii_1), len(ascii_1[0])
 	merged := make([][][]rune, Y)
 	for i := range merged {
 		merged[i] = make([][]rune, X)
 		for j := range merged[i] {
-			if string(ascii1[i][j][0]) == " " {
-				merged[i][j] = ascii2[i][j] // Use value from second ASCII image
+			if string(ascii_1[i][j][0]) == " " {
+				merged[i][j] = ascii_2[i][j] // Use value from second ASCII image
 			} else {
-				merged[i][j] = ascii1[i][j] // Default to first ASCII image
+				merged[i][j] = ascii_1[i][j] // Default to first ASCII image
 			}
 		}
 	}
 	return merged
 }
-
-// Uncomment for testing
-// func main() {
-// 	//open the image
-// 	file, err := os.Open("../static/galax.png")
-// 	if err != nil {
-// 		fmt.Println("Error opening image file:", err)
-// 		return
-// 	}
-// 	defer file.Close()
-// 	img, _, err := image.Decode(file)
-// 	if err != nil {
-// 		fmt.Println("Error decoding image :", err)
-// 		return
-// 	}
-// 	ANGLE_THRESHOLD := 0.1
-// 	GRADIENT_TRESHOLD := uint8(80)
-// 	img_matrix := getImageMatrix(img)
-// 	fmt.Println("Image shape Y:", len(img_matrix), "X:", len(img_matrix[0]))
-// 	dMatrix, err := downSample(img_matrix, 8)
-// 	if err != nil {
-// 		fmt.Println("Error in downSample:", err)
-// 		// Handle the error appropriately
-// 		return
-// 	}
-// 	exportImage(dMatrix, "../static/downsapled.png")
-// 	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
-// 	// Check if desaturace -> downSample is different form downSample -> destaturate
-// 	desaturateInplace(dMatrix)
-// 	exportImage(dMatrix, "../static/desaturated.png")
-// 	fmt.Println("Image shape Y:", len(dMatrix), "X:", len(dMatrix[0]))
-
-// 	ascii := asciiIamge(dMatrix, false, ANGLE_THRESHOLD)
-// 	fmt.Println("Image shape Y:", len(ascii), "X:", len(ascii[0]))
-// 	printAsciiArt(ascii)
-
-// 	gaussiansDiff, err := differenceOfGaussians(dMatrix)
-// 	if err != nil {
-// 		fmt.Println("Error in gaussiansDiff:", err)
-// 	}
-// 	exportImage(gaussiansDiff, "../static/gaussDiff.png")
-// 	desaturateInplace(img_matrix)
-// 	sobelMatrix, gradientMatrix, err := sobelFilter(img_matrix, GRADIENT_TRESHOLD)
-// 	if err != nil {
-// 		fmt.Println("Error in sobelFilter:", err)
-// 		return
-// 	}
-// 	dGradientMatrix, err := downSample(gradientMatrix, 8)
-// 	d_sobelMatrix, err := downSample(sobelMatrix, 8)
-// 	ascii_1 := asciiIamge(d_sobelMatrix, false, ANGLE_THRESHOLD)
-// 	printAsciiArt(ascii_1)
-// 	ascii_2 := asciiIamge(dGradientMatrix, true, ANGLE_THRESHOLD)
-// 	printAsciiArt(ascii_2)
-// 	merged_ascii := mergeAsciiImages(ascii_2, ascii_1)
-// 	printAsciiArt(merged_ascii)
-// 	merged_ascii = mergeAsciiImages(merged_ascii, ascii)
-// 	printAsciiArt(merged_ascii)
-// 	exportImage(sobelMatrix, "../static/sobelFilter.png")
-// 	exportImage(gradientMatrix, "../static/gradientMatrix.png")
-// }

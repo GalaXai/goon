@@ -19,8 +19,10 @@ type Base64ImageRequest struct {
 	Base64Image string `json:"base64Image"`
 }
 type Base64EdgeDetectionRequest struct {
-	Base64Image       string `json:"base64Image"`
-	GradientThreshold uint16 `json:"gradientThreshold"`
+	Base64Image       string  `json:"base64Image"`
+	GradientThreshold uint16  `json:"gradientThreshold"`
+	Tau               float64 `json:"tau"`
+	Threshold         float64 `json:"threshold"`
 }
 type CombinedResponse struct {
 	ImageResponse Base64ImagesResponse `json:"imageResponse"`
