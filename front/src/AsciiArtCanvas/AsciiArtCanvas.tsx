@@ -12,7 +12,7 @@ const AsciiArtCanvas = (props: AsciiArtCanvasProps) => {
   const [fontSize, setFontSize] = createSignal(0.4);
 
   const convertToChar = (value: number) => {
-    if (value === 0) return ' ';
+    if (value === 0) return '';
     return String.fromCharCode(value);
   };
 
@@ -24,7 +24,7 @@ const AsciiArtCanvas = (props: AsciiArtCanvasProps) => {
       const asciiString = data.map((layer) => {
         const layerString = layer.map((row) => {
           return row.map((value) => convertToChar(Number(value))).join('');
-        }).join(' ');
+        }).join('');
         return layerString;
       }).join('\n\n');
 
