@@ -21,12 +21,14 @@ const AsciiArtCanvas = (props: AsciiArtCanvasProps) => {
       const { data, rows } = props.asciiArt;
 
       // Set textarea content
-      const asciiString = data.map((layer) => {
-        const layerString = layer.map((row) => {
-          return row.map((value) => convertToChar(Number(value))).join('');
+      const asciiString = data.map((row) => {
+        console.log(row)
+        const rowString = row.map((dim) => {
+          console.log(dim)
+          return dim.map((value) => convertToChar(Number(value))).join('');
         }).join('');
-        return layerString;
-      }).join('\n\n');
+        return rowString;
+      }).join('\n');
 
       textareaRef.value = asciiString;
       const containerHeight = `${rows * (fontSize() * 1.5)}em`;
