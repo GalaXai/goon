@@ -103,53 +103,30 @@ func (s *APIServer) handleEdgeDetectAscii(w http.ResponseWriter, r *http.Request
 		return fmt.Errorf("error decoding request body: %v", err)
 	}
 
-	// Generate a unique key for the image
-	cacheKey := generateCacheKey(req.Base64Image)
-
-	// Try to get the cached results
-	cache := getImageCache(cacheKey)
-
 	var originalMatrix, desaturatedMatrix, downsampledMatrix, gaussiansDiff Matrix3D
 	var err error
-	if cache == nil {
-		originalMatrix, err = base64ToMatrix(req.Base64Image)
-		if err != nil {
-			return fmt.Errorf("error converting base64 to matrix: %v", err)
-		}
-
-		// Desaturate
-		desaturatedMatrix = desaturate(originalMatrix)
-
-		// Downsample
-		downsampledMatrix, err = downSample(desaturatedMatrix, 1)
-		if err != nil {
-			return fmt.Errorf("error downsampling image: %v", err)
-		}
-
-		// Difference of Gaussians
-		gaussiansDiff, err = differenceOfGaussians(downsampledMatrix)
-		if err != nil {
-			return fmt.Errorf("error applying difference of Gaussians: %v", err)
-		}
-		// Store the results in cache
-		cache = &ImageCache{
-			OriginalMatrix:    originalMatrix,
-			DesaturatedMatrix: desaturatedMatrix,
-			DownsampledMatrix: downsampledMatrix,
-			GaussiansDiff:     gaussiansDiff,
-			LastUsed:          time.Now(),
-		}
-		setImageCache(cacheKey, cache)
-	} else {
-		// Use cached results
-		log.Printf("Using cache")
-		originalMatrix = cache.OriginalMatrix
-		desaturatedMatrix = cache.DesaturatedMatrix
-		downsampledMatrix = cache.DownsampledMatrix
-		gaussiansDiff = cache.GaussiansDiff
-		cache.LastUsed = time.Now()
+	// if cache == nil {
+	originalMatrix, err = base64ToMatrix(req.Base64Image)
+	if err != nil {
+		return fmt.Errorf("error converting base64 to matrix: %v", err)
 	}
-	// Sobel fiter -> __, edges(gradient at dataPoint)
+
+	// Desaturate
+	desaturatedMatrix = desaturate(originalMatrix)
+
+	// Downsample
+	downsampledMatrix, err = downSample(desaturatedMatrix, 2)
+	if err != nil {
+		return fmt.Errorf("error downsampling image: %v", err)
+	}
+
+	// Difference of Gaussians
+	log.Print(req.Tau, req.Threshold)
+	gaussiansDiff, err = differenceOfGaussians(downsampledMatrix, req.Tau, req.Threshold)
+	if err != nil {
+		return fmt.Errorf("error applying extended Difference Of Gaussians: %v", err)
+	}
+
 	gradientThreshold := req.GradientThreshold
 
 	horizontalSobel, err := horizontalSobel(gaussiansDiff)
@@ -169,12 +146,13 @@ func (s *APIServer) handleEdgeDetectAscii(w http.ResponseWriter, r *http.Request
 		HorizontalSobel:    matrixToBase64(horizontalSobel),
 		VerticalSobel:      matrixToBase64(verticalSobel),
 	}
-	ascii_1 := asciiImage(verticalSobel, true, 0.1)
-	ascii_2 := asciiImage(downsampledMatrix, false, 0.0)
-	merged_ascii := mergeAsciiImages(ascii_2, ascii_1)
+	ascii_1 := asciiImage(verticalSobel, true, 0)
+	// ascii_1 := asciiImage(downsampledMatrix, false, 0.1)
+	ascii_2 := asciiImage(downsampledMatrix, false, 0.1)
+	merged_ascii := mergeAsciiImages(ascii_1, ascii_2)
 
 	runeMatrix3D := RuneMatrix3D{
-		Data:  ascii_1,
+		Data:  merged_ascii,
 		Cols:  len(merged_ascii[0]),
 		Rows:  len(merged_ascii),
 		Depth: len(merged_ascii[0][0]),

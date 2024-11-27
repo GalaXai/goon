@@ -1,22 +1,12 @@
-import axios from 'axios';
+import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError, AxiosResponse } from 'axios';
 
 
-const getEnvVariable = (key) => {
-    if (import.meta.env) {
-      return import.meta.env[key];
-    }
-    if (typeof process !== 'undefined' && process.env) {
-      return process.env[key];
-    }
-    return undefined;
-  };
-
-  const baseURL = getEnvVariable('VITE_API_BASE_URL') || 'http://localhost:3000';
+const baseURL: string = process.env.VITE_API_BASE_URL || 'http://localhost:3000/'
 
 console.log('Environment Variables:');
-console.log('VITE_API_BASE_URL:', getEnvVariable('VITE_API_BASE_URL'));
+console.log('VITE_API_BASE_URL:', baseURL)
 
-const axiosInstance = axios.create({
+const axiosInstance: AxiosInstance = axios.create({
   baseURL: baseURL,
   timeout: 10000,
   headers: {
@@ -27,21 +17,21 @@ const axiosInstance = axios.create({
 
 // Request interceptor
 axiosInstance.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
     // You can add any request modifications here, such as adding auth tokens
     return config;
   },
-  (error) => {m
+  (error: AxiosError): Promise<AxiosError> => {
     return Promise.reject(error);
   }
 );
 
 // Response interceptor
 axiosInstance.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse): AxiosResponse => {
     return response;
   },
-  (error) => {
+  (error: AxiosError): Promise<AxiosError> => {
     // Handle errors globally
     console.error('API Error:', error);
     return Promise.reject(error);

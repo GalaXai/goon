@@ -12,13 +12,14 @@
   }
   
   .grid-image {
-    max-width: 100%;
-    max-height: 200px;
+    width: 200px;
+    height: 200px;
     object-fit: contain;
   }
   
+
   .placeholder {
-    width: 100%;
+    width: 200px;
     height: 200px;
     background-color: #f0f0f0;
     display: flex;
