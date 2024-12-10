@@ -27,6 +27,11 @@ build: build-backend build-frontend
 
 run: kill build-backend run-backend run-frontend
 
+run-w:
+	@make kill
+	@make build-backend
+	@make watch-backend & make run-frontend
+
 run-no-build:
 	@${LOGIC_PATH}${BINARY} &
 

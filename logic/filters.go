@@ -53,7 +53,7 @@ func downSample(matrix [][][]uint8, kernelSize int) ([][][]uint8, error) {
 	}
 
 	Y, X, dim := len(matrix), len(matrix[0]), len(matrix[0][0])
-
+	fmt.Println(Y, X)
 	// Check if kernelSize is valid
 	if kernelSize <= 0 || kernelSize > Y || kernelSize > X {
 		return nil, fmt.Errorf("invalid kernel size: %d", kernelSize)
@@ -97,6 +97,8 @@ func downSample(matrix [][][]uint8, kernelSize int) ([][][]uint8, error) {
 			downSampledMatrix[i][j] = avg
 		}
 	}
+	Y, X, dim = len(downSampledMatrix), len(downSampledMatrix[0]), len(downSampledMatrix[0][0])
+	fmt.Println(Y, X)
 	return downSampledMatrix, nil
 }
 
@@ -186,28 +188,44 @@ func desaturate(matrix [][][]uint8) [][][]uint8 {
 	return desaturatedMatrix
 }
 
+// ▚
+
+// ▞
+
+// ▮
+// ▬
+// ▐
+// ■
+// ◢◣◤◥
+// ⚊ ❙
 func angleAsciiChar(angle uint8, MAGNITUDE_THRESHOLD float64) rune {
 	f_angle := float64(angle) / 255
+	// asciiValues := []rune{' ', '|', '\\', '/', '_'} // List of values corresponding to angles
+	// asciiValues := []rune{' ', '▮', '▚', '▞', '▬'} // List of values corresponding to angles
+	asciiValues := []rune{' ', '▮', '╲', '╱', '▬'} // List of values corresponding to angles
+
 	switch {
 	case f_angle == 0.5-MAGNITUDE_THRESHOLD || f_angle == 0.5+MAGNITUDE_THRESHOLD:
-		return '_'
+		return asciiValues[4] // Return '_' character
 	case f_angle > 0.5+MAGNITUDE_THRESHOLD:
-		return '/'
+		return asciiValues[3] // Return '/' character
 	case f_angle < 0.5-MAGNITUDE_THRESHOLD && f_angle > MAGNITUDE_THRESHOLD:
-		return '\\'
+		return asciiValues[2] // Return '\' character
 	case f_angle > 1-MAGNITUDE_THRESHOLD:
-		return '|'
+		return asciiValues[1] // Return '|' character
 	default:
-		return ' '
+		return asciiValues[0] // Return ' ' character
 	}
 }
 
 func getAsciiChar(value float64, angled bool, MAGNITUDE_THRESHOLD float64) rune {
-	asciiTable := []rune{' ', ',', ';', 'c', 'o', 'P', 'O', '?', '@', '▓'}
+	// asciiTable := []rune{' ', ',', ';', 'c', 'o', 'P', 'O', '?', '@', '▓'}
+	asciiTable := []rune{' ', '░', '▒', '▓', '█'}
 	if angled {
 		return angleAsciiChar(uint8(value*255), MAGNITUDE_THRESHOLD)
 	}
-	luminance := uint8(int(math.Floor(value * 9.0)))
+	luminance := uint8(int(math.Floor(value * float64(len(asciiTable)-1))))
+	// fmt.Println(luminance, value, len(asciiTable))
 	return asciiTable[luminance]
 }
 

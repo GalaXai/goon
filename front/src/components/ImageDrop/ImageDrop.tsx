@@ -26,6 +26,22 @@ const ImageDrop: Component<ImageDropProps> = (props) => {
     setIsDragging(false);
   };
 
+  const handlePaste = async (e: ClipboardEvent) => {
+    e.preventDefault();
+    const items = e.clipboardData?.items;
+    
+    if (!items) return;
+
+    const imageItems = Array.from(items).filter(
+      item => item.type.indexOf('image') !== -1
+    );
+
+    if (imageItems.length === 0) return;
+
+    const files = imageItems.map(item => item.getAsFile()).filter((file): file is File => file !== null);
+    processFiles(files.length > 0 ? (files as unknown as FileList) : null);
+  };
+  
   const convertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -84,12 +100,16 @@ const ImageDrop: Component<ImageDropProps> = (props) => {
       div.addEventListener('dragenter', handleDragEnter);
       div.addEventListener('dragleave', handleDragLeave);
       div.addEventListener('drop', handleDrop);
+      document.addEventListener('paste', handlePaste);
+
 
       onCleanup(() => {
         div.removeEventListener('dragover', handleDragOver);
         div.removeEventListener('dragenter', handleDragEnter);
         div.removeEventListener('dragleave', handleDragLeave);
         div.removeEventListener('drop', handleDrop);
+        document.removeEventListener('paste', handlePaste);
+
       });
     }
   });
@@ -106,7 +126,7 @@ const ImageDrop: Component<ImageDropProps> = (props) => {
         cursor: 'pointer',
       }}
     >
-      {isDragging() ? 'Drop files here' : 'Drag and drop files here or click to select'}
+      {isDragging() ? 'Drop files here' : 'Drag and drop files here, click to select, or paste an image (Ctrl+V)'}
       <input
         type="file"
         ref={fileInputRef}

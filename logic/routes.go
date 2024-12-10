@@ -115,7 +115,7 @@ func (s *APIServer) handleEdgeDetectAscii(w http.ResponseWriter, r *http.Request
 	desaturatedMatrix = desaturate(originalMatrix)
 
 	// Downsample
-	downsampledMatrix, err = downSample(desaturatedMatrix, 2)
+	downsampledMatrix, err = downSample(desaturatedMatrix, 1)
 	if err != nil {
 		return fmt.Errorf("error downsampling image: %v", err)
 	}
